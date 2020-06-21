@@ -28,6 +28,9 @@ public enum CombineRealmError: Error {
 public protocol NotificationEmitter {
     associatedtype ElementType: RealmCollectionValue
     
+  func observe(on queue: DispatchQueue?,
+  _ block: @escaping (RealmCollectionChange<Self>) -> Void)
+  -> NotificationToken
     /**
      Returns a `NotificationToken`, which while retained enables change notifications for the current collection.
      
@@ -38,6 +41,12 @@ public protocol NotificationEmitter {
     func toArray() -> [ElementType]
     
     func toAnyCollection() -> AnyRealmCollection<ElementType>
+}
+
+extension NotificationEmitter {
+  public func observe(_ block: @escaping (RealmCollectionChange<Self>) -> Void) -> NotificationToken {
+    self.observe(on: nil, block)
+  }
 }
 
 extension List: NotificationEmitter {
@@ -163,7 +172,7 @@ public enum RealmPublishers {
     public static func collection<Output: NotificationEmitter>(from collection: Output,
                                                                synchronousStart: Bool = true)
         -> AnyPublisher<Output, Error> {
-            
+  
             let initialValue: Output? = synchronousStart ? collection : nil
             return RealmPublisher<Output, Error>(initialValue: initialValue) { subscriber in
                 return collection.observe { changeset in
@@ -304,8 +313,8 @@ public enum RealmPublishers {
             return RealmPublisher<O, Error>(initialValue: initialValue) { subscriber in
                 return object.observe { change in
                     switch change {
-                    case let .change(changedProperties):
-                        if let properties = properties, !changedProperties.contains { return properties.contains($0.name) } {
+                    case let .change(_, changedProperties):
+                      if let properties = properties, !changedProperties.contains(where: { return properties.contains($0.name) }) {
                             // if change property isn't an observed one, just return
                             return
                         }
@@ -332,7 +341,7 @@ public enum RealmPublishers {
         return RealmPublisher<PropertyChange, Error> { subscriber in
             return object.observe { change in
                 switch change {
-                case let .change(changes):
+                case let .change(_, changes):
                     for change in changes {
                         _ = subscriber.receive(change)
                     }
