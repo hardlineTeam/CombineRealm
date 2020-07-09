@@ -25,6 +25,6 @@ Pod::Spec.new do |s|
 
   s.swift_version    = "5.1"
 
-  s.dependency 'RealmSwift', '~> 4.0.0'
+  s.dependency 'RealmSwift', '~> 5.2.0'
 
 end
